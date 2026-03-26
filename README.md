@@ -4,6 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-FF4B4B?style=flat&logo=streamlit&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=flat&logo=sqlite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sp500-analytics-2cyocwl8dqbt6wk8m9zcxh.streamlit.app)
 
 Dashboard interactivo de análisis técnico, sentiment e inteligencia de mercado para las 20 principales acciones del S&P 500. Combina indicadores clásicos de trading con análisis de redes sociales en tiempo real (X/Twitter via Grok) y noticias financieras para generar una visión consolidada del mercado en una sola pantalla.
 
@@ -134,6 +135,8 @@ NEWS_API_KEY=your_news_api_key_here
 ---
 
 ## Deploy en Streamlit Cloud
+
+**Demo en vivo:** [sp500-analytics-2cyocwl8dqbt6wk8m9zcxh.streamlit.app](https://sp500-analytics-2cyocwl8dqbt6wk8m9zcxh.streamlit.app)
 
 1. Hacer fork del repositorio en tu cuenta de GitHub
 2. Ir a [share.streamlit.io](https://share.streamlit.io) → **New app**

@@ -851,7 +851,7 @@ def render_panel_detalle(ticker: str) -> None:
     with tab_tec:
         # Gráfico principal
         if not df_i.empty:
-            st.plotly_chart(grafico_precio_bb(df_p, df_i), use_container_width=True)
+            st.plotly_chart(grafico_precio_bb(df_p, df_i))
         else:
             # Sin indicadores: solo candlestick básico
             fig = go.Figure(go.Candlestick(
@@ -865,7 +865,7 @@ def render_panel_detalle(ticker: str) -> None:
                 height=400, template=TEMPLATE,
                 xaxis_rangeslider_visible=False,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig)
             st.warning("Sin indicadores técnicos. Ejecutá `python technical.py`.")
 
         # RSI y MACD en dos columnas
@@ -874,13 +874,13 @@ def render_panel_detalle(ticker: str) -> None:
             with c1:
                 st.markdown("**RSI (14)**")
                 if df_i["rsi"].notna().any():
-                    st.plotly_chart(grafico_rsi(df_i), use_container_width=True)
+                    st.plotly_chart(grafico_rsi(df_i))
                 else:
                     st.info("Sin datos de RSI suficientes.")
             with c2:
                 st.markdown("**MACD (12-26-9)**")
                 if df_i["macd"].notna().any():
-                    st.plotly_chart(grafico_macd(df_i), use_container_width=True)
+                    st.plotly_chart(grafico_macd(df_i))
                 else:
                     st.info("Sin datos de MACD suficientes.")
 
