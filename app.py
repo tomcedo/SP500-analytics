@@ -64,6 +64,14 @@ TEMPLATE = "plotly_white"
 
 EMOJI_SENT = {"positivo": "🟢", "negativo": "🔴", "neutral": "🟡"}
 
+# Configuración de intervalos: etiqueta UI, tabla BD, TTL caché, ventana visible
+INTERVALO_CONFIG = {
+    "1d":  {"label": "Diario",     "tabla": "precios",     "ttl": 3600,  "ventana": "90 días",  "sql": "detalle_precios"},
+    "1wk": {"label": "Semanal",    "tabla": "precios_1wk", "ttl": 86400, "ventana": "1 año",    "sql": "detalle_precios_1wk"},
+    "1h":  {"label": "Horario",    "tabla": "precios_1h",  "ttl": 900,   "ventana": "14 días",  "sql": "detalle_precios_1h"},
+    "15m": {"label": "15 min",     "tabla": "precios_15m", "ttl": 300,   "ventana": "5 días",   "sql": "detalle_precios_15m"},
+}
+
 # ---------------------------------------------------------------------------
 # Inicialización automática de BD (Streamlit Cloud no tiene market.db)
 # ---------------------------------------------------------------------------
@@ -144,6 +152,28 @@ def _inicializar_bd() -> None:
             FOREIGN KEY (ticker) REFERENCES empresas(ticker)
         )
     """)
+    # Tablas intraday vacías para que las queries SQL no fallen al primer arranque
+    for ddl in [
+        """CREATE TABLE IF NOT EXISTS precios_1wk (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL, fecha DATE NOT NULL,
+            apertura REAL, cierre REAL, maximo REAL, minimo REAL, volumen INTEGER,
+            UNIQUE (ticker, fecha), FOREIGN KEY (ticker) REFERENCES empresas(ticker)
+        )""",
+        """CREATE TABLE IF NOT EXISTS precios_1h (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL, fecha TEXT NOT NULL,
+            apertura REAL, cierre REAL, maximo REAL, minimo REAL, volumen INTEGER,
+            UNIQUE (ticker, fecha), FOREIGN KEY (ticker) REFERENCES empresas(ticker)
+        )""",
+        """CREATE TABLE IF NOT EXISTS precios_15m (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker TEXT NOT NULL, fecha TEXT NOT NULL,
+            apertura REAL, cierre REAL, maximo REAL, minimo REAL, volumen INTEGER,
+            UNIQUE (ticker, fecha), FOREIGN KEY (ticker) REFERENCES empresas(ticker)
+        )""",
+    ]:
+        conn_init.execute(ddl)
     conn_init.commit()
     conn_init.close()
 
@@ -234,14 +264,71 @@ def cargar_noticias(ticker: str) -> pd.DataFrame:
     return _query("noticias", params=(ticker,))
 
 
+@st.cache_data(ttl=86400)
+def cargar_precios_1wk(ticker: str) -> pd.DataFrame:
+    """Precios semanales (1 año) para el ticker (cache 24 h)."""
+    return _query("detalle_precios_1wk", params=(ticker,))
+
+
+@st.cache_data(ttl=900)
+def cargar_precios_1h(ticker: str) -> pd.DataFrame:
+    """Precios horarios (últimos 14 días) para el ticker (cache 15 min)."""
+    return _query("detalle_precios_1h", params=(ticker,))
+
+
+@st.cache_data(ttl=300)
+def cargar_precios_15m(ticker: str) -> pd.DataFrame:
+    """Precios de 15 min (últimos 5 días) para el ticker (cache 5 min)."""
+    return _query("detalle_precios_15m", params=(ticker,))
+
+
+def _df_indicadores_de_precios(df_p: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calcula indicadores técnicos on-the-fly desde precios OHLCV.
+    Usado para intervalos intraday (1wk, 1h, 15m) donde no existe tabla indicadores.
+    Importa desde technical en tiempo de uso para evitar conflicto de sys.stdout.
+    """
+    if df_p.empty:
+        return pd.DataFrame()
+    from technical import calcular_para_ticker, generar_senales  # noqa: PLC0415
+    df = df_p.copy()
+    df = calcular_para_ticker(df)
+    df = generar_senales(df)
+    return df.rename(columns={
+        "RSI_14":         "rsi",
+        "MACD_12_26_9":   "macd",
+        "MACDs_12_26_9":  "macd_signal",
+        "MACDh_12_26_9":  "macd_hist",
+        "BBU_20_2.0":     "bb_upper",
+        "BBM_20_2.0":     "bb_middle",
+        "BBL_20_2.0":     "bb_lower",
+        "EMA_20":         "ema_20",
+        "EMA_50":         "ema_50",
+        "EMA_200":        "ema_200",
+    })
+
+
+def _ultima_actualizacion(ticker: str, tabla: str) -> str:
+    """Retorna la fecha del dato más reciente para el ticker en la tabla indicada."""
+    try:
+        sql = _leer_sql("ultima_actualizacion").format(tabla=tabla)
+        conn = _conectar()
+        row = conn.execute(sql, (ticker,)).fetchone()
+        conn.close()
+        return row[0] if row and row[0] else "—"
+    except Exception:
+        return "—"
+
+
 # ---------------------------------------------------------------------------
 # Gráficos
 # ---------------------------------------------------------------------------
 
-def grafico_precio_bb(df_p: pd.DataFrame, df_i: pd.DataFrame) -> go.Figure:
+def grafico_precio_bb(df_p: pd.DataFrame, df_i: pd.DataFrame, intervalo: str = "1d") -> go.Figure:
     """
-    Candlestick + Bollinger Bands rellenas + SMA 20/50/200 + volumen en subplot.
+    Candlestick + Bollinger Bands rellenas + EMA 20/50/200 + volumen en subplot.
     Las BB se agregan antes del candlestick para que queden detrás.
+    Aplica rangebreaks según el intervalo para eliminar gaps sin datos.
     """
     fig = make_subplots(
         rows=2, cols=1,
@@ -320,9 +407,19 @@ def grafico_precio_bb(df_p: pd.DataFrame, df_i: pd.DataFrame) -> go.Figure:
         legend=dict(orientation="h", y=1.06, x=0, font_size=11),
         hovermode="x unified",
     )
-    # rangebreaks elimina los gaps de fines de semana sin distorsionar el ancho de las velas
+    # rangebreaks según intervalo: elimina gaps sin datos de mercado
+    if intervalo == "1d":
+        rb = [dict(bounds=["sat", "mon"])]
+    elif intervalo in ("1h", "15m"):
+        rb = [
+            dict(bounds=["sat", "mon"]),               # fines de semana
+            dict(bounds=[16, 9.5], pattern="hour"),    # fuera de horario NYSE (9:30–16:00 ET)
+        ]
+    else:
+        rb = []  # 1wk: velas ya cubren la semana completa
+
     fig.update_xaxes(
-        rangebreaks=[dict(bounds=["sat", "mon"])],
+        rangebreaks=rb,
         tickangle=-30,
         nticks=16,
     )
@@ -809,12 +906,65 @@ def render_panel_detalle(ticker: str) -> None:
     st.caption(f"{emp['sector']}  ·  {emp['industria']}")
     st.divider()
 
-    # -- Cargar datos de detalle --
-    df_p = cargar_detalle_precios(ticker)
-    df_i = cargar_detalle_indicadores(ticker)
+    # -- Selector de intervalo + última actualización + refresh --
+    col_iv, col_ua, col_rf = st.columns([4, 3, 2])
+    with col_iv:
+        intervalo = st.radio(
+            "Intervalo",
+            options=list(INTERVALO_CONFIG.keys()),
+            format_func=lambda x: INTERVALO_CONFIG[x]["label"],
+            horizontal=True,
+            key=f"intervalo_{ticker}",
+        )
+    cfg = INTERVALO_CONFIG[intervalo]
+    with col_rf:
+        force_refresh = st.button(
+            "↻ Actualizar",
+            key=f"refresh_{ticker}_{intervalo}",
+            help=f"Descarga {cfg['label'].lower()} actualizado para {ticker}",
+        )
+
+    if force_refresh:
+        with st.spinner(f"Descargando {cfg['label'].lower()} para {ticker}..."):
+            res = subprocess.run(
+                [sys.executable, "etl.py", "--interval", intervalo, "--ticker", ticker],
+                capture_output=True, text=True, encoding="utf-8",
+                timeout=180, cwd=APP_DIR,
+            )
+        if res.returncode == 0:
+            cargar_detalle_precios.clear()
+            cargar_precios_1wk.clear()
+            cargar_precios_1h.clear()
+            cargar_precios_15m.clear()
+            st.rerun()
+        else:
+            st.error(f"Error al actualizar:\n```\n{res.stderr[:400]}\n```")
+
+    # -- Cargar datos según intervalo --
+    if intervalo == "1d":
+        df_p = cargar_detalle_precios(ticker)
+        df_i = cargar_detalle_indicadores(ticker)
+    elif intervalo == "1wk":
+        df_p = cargar_precios_1wk(ticker)
+        df_i = _df_indicadores_de_precios(df_p)
+    elif intervalo == "1h":
+        df_p = cargar_precios_1h(ticker)
+        df_i = _df_indicadores_de_precios(df_p)
+    else:  # 15m
+        df_p = cargar_precios_15m(ticker)
+        df_i = _df_indicadores_de_precios(df_p)
+
+    # Mostrar timestamp del último dato disponible
+    ultima = _ultima_actualizacion(ticker, cfg["tabla"])
+    with col_ua:
+        st.caption(f"Último dato: {ultima}")
 
     if df_p.empty:
-        st.error(f"Sin datos de precio para {ticker} en los últimos 90 días.")
+        st.warning(
+            f"Sin datos {cfg['label'].lower()} para **{ticker}** (ventana: {cfg['ventana']}). "
+            f"Hacé clic en **↻ Actualizar** o ejecutá:\n"
+            f"```\npython etl.py --interval {intervalo} --ticker {ticker}\n```"
+        )
         return
 
     # -- Métricas rápidas --
@@ -822,7 +972,7 @@ def render_panel_detalle(ticker: str) -> None:
     precio_ayer  = df_p["cierre"].iloc[-2] if len(df_p) > 1 else precio_hoy
     variacion    = (precio_hoy - precio_ayer) / precio_ayer * 100
     vol_hoy      = int(df_p["volumen"].iloc[-1])
-    fecha_hoy    = df_p["fecha"].iloc[-1]
+    fecha_hoy    = str(df_p["fecha"].iloc[-1])[:16]  # cortar segundos para intraday
 
     rsi_val = None
     tend_txt = "—"
@@ -839,7 +989,7 @@ def render_panel_detalle(ticker: str) -> None:
     m2.metric("Volumen", f"{vol_hoy:,}")
     m3.metric("RSI (14)", f"{rsi_val:.1f}" if rsi_val is not None else "—")
     m4.metric("Tendencia EMA 200", tend_txt)
-    st.caption(f"Datos al {fecha_hoy} · Últimos 90 días")
+    st.caption(f"Datos al {fecha_hoy} · {cfg['label']} · Ventana: {cfg['ventana']}")
 
     st.divider()
 
@@ -851,7 +1001,7 @@ def render_panel_detalle(ticker: str) -> None:
     with tab_tec:
         # Gráfico principal
         if not df_i.empty:
-            st.plotly_chart(grafico_precio_bb(df_p, df_i))
+            st.plotly_chart(grafico_precio_bb(df_p, df_i, intervalo))
         else:
             # Sin indicadores: solo candlestick básico
             fig = go.Figure(go.Candlestick(

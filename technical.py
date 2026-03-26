@@ -17,9 +17,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-# Forzar UTF-8 en stdout para evitar errores en consolas Windows (cp1252)
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-
 import numpy as np
 import pandas as pd
 
@@ -433,6 +430,9 @@ def mostrar_resumen(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    # Forzar UTF-8 en stdout para evitar errores en consolas Windows (cp1252)
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(
         description="Market Intelligence Dashboard — Indicadores Técnicos"
     )
