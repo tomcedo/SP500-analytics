@@ -13,7 +13,7 @@ SELECT
     s.resumen,
     s.evento
 FROM sentiment s
-JOIN empresas e ON e.ticker = s.ticker
+LEFT JOIN empresas e ON e.ticker = s.ticker
 WHERE (s.ticker, s.fecha) IN (
     SELECT ticker, MAX(fecha)
     FROM sentiment

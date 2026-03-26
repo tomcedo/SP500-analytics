@@ -112,6 +112,41 @@ def _inicializar_bd() -> None:
         st.error(f"Error al calcular indicadores:\n```\n{res_tech.stderr[:800]}\n```")
         st.stop()
 
+    # Crear tabla sentiment vacía si no existe — sentiment.py requiere XAI_API_KEY
+    # y puede no ejecutarse en cloud; las queries usan LEFT JOIN y toleran tabla vacía
+    conn_init = sqlite3.connect(DB_PATH)
+    conn_init.execute("""
+        CREATE TABLE IF NOT EXISTS sentiment (
+            ticker          TEXT    NOT NULL,
+            fecha           DATE    NOT NULL,
+            score           TEXT,
+            score_numerico  REAL,
+            menciones       INTEGER,
+            resumen         TEXT,
+            evento          TEXT,
+            modelo          TEXT,
+            fecha_carga     DATE,
+            UNIQUE (ticker, fecha),
+            FOREIGN KEY (ticker) REFERENCES empresas(ticker)
+        )
+    """)
+    conn_init.execute("""
+        CREATE TABLE IF NOT EXISTS noticias (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker      TEXT    NOT NULL,
+            titulo      TEXT,
+            fuente      TEXT,
+            fecha       TEXT,
+            url         TEXT,
+            descripcion TEXT,
+            fecha_carga DATE    NOT NULL,
+            UNIQUE (ticker, url),
+            FOREIGN KEY (ticker) REFERENCES empresas(ticker)
+        )
+    """)
+    conn_init.commit()
+    conn_init.close()
+
     barra.progress(100, text="¡Listo!")
     st.success("Base de datos inicializada correctamente.")
     st.rerun()
@@ -399,7 +434,7 @@ def _formatear_tabla(df: pd.DataFrame) -> pd.DataFrame:
     # Sentiment con emoji
     out["sent_fmt"] = out.apply(
         lambda r: f"{EMOJI_SENT.get(r['sentiment_score'], '⚪')} {r['sentiment_num']:+.2f}"
-                  if pd.notna(r["sentiment_score"]) else "—",
+                  if pd.notna(r["sentiment_score"]) and pd.notna(r["sentiment_num"]) else "N/A",
         axis=1,
     )
     # Tendencia acortada

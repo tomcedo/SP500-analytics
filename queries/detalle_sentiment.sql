@@ -16,7 +16,7 @@ SELECT
     s.evento,
     s.modelo
 FROM sentiment s
-JOIN empresas e ON e.ticker = s.ticker
+LEFT JOIN empresas e ON e.ticker = s.ticker
 WHERE s.ticker = ?
 ORDER BY s.fecha DESC
 LIMIT 1
