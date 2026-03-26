@@ -7,7 +7,7 @@
 
 Dashboard interactivo de análisis técnico, sentiment e inteligencia de mercado para las 20 principales acciones del S&P 500. Combina indicadores clásicos de trading con análisis de redes sociales en tiempo real (X/Twitter via Grok) y noticias financieras para generar una visión consolidada del mercado en una sola pantalla.
 
-![Dashboard Preview](assets/screenshot.png)
+![Dashboard Preview](assets/Screenshot.png)
 
 ---
 
