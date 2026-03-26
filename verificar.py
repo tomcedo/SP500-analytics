@@ -6,7 +6,7 @@ ejecutando 3 consultas de diagnóstico.
 import sqlite3
 from pathlib import Path
 
-DB_PATH = Path("data/market.db")
+DB_PATH = Path(__file__).parent / "data" / "market.db"
 
 
 def conectar() -> sqlite3.Connection:

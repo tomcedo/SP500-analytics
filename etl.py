@@ -20,7 +20,7 @@ import pandas as pd
 # Configuración
 # ---------------------------------------------------------------------------
 
-DB_PATH = Path("data/market.db")
+DB_PATH = Path(__file__).parent / "data" / "market.db"
 
 # 20 acciones del S&P 500 seleccionadas
 TICKERS = [

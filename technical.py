@@ -27,8 +27,8 @@ import pandas as pd
 # Configuración
 # ---------------------------------------------------------------------------
 
-DB_PATH          = Path("data/market.db")
-SQL_INDICADORES  = Path("queries/indicadores.sql")
+DB_PATH          = Path(__file__).parent / "data" / "market.db"
+SQL_INDICADORES  = Path(__file__).parent / "queries" / "indicadores.sql"
 
 # ---------------------------------------------------------------------------
 # DDL — SQL de creación de la tabla indicadores (visible como referencia)

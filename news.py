@@ -34,7 +34,7 @@ load_dotenv()
 # Configuración
 # ---------------------------------------------------------------------------
 
-DB_PATH          = Path("data/market.db")
+DB_PATH          = Path(__file__).parent / "data" / "market.db"
 NEWSAPI_URL      = "https://newsapi.org/v2/everything"
 ARTICULOS_MAX    = 4       # máximo a guardar por ticker
 ARTICULOS_FETCH  = 10      # cuántos pedir (filtrar los mejores 4)

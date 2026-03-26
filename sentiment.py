@@ -36,8 +36,8 @@ load_dotenv()
 # Configuración
 # ---------------------------------------------------------------------------
 
-DB_PATH         = Path("data/market.db")
-SQL_SENTIMENT   = Path("queries/sentiment.sql")
+DB_PATH         = Path(__file__).parent / "data" / "market.db"
+SQL_SENTIMENT   = Path(__file__).parent / "queries" / "sentiment.sql"
 XAI_API_URL     = "https://api.x.ai/v1/responses"
 MODELO          = "grok-4"
 

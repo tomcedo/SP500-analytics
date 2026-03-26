@@ -49,8 +49,9 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 # Constantes
 # ---------------------------------------------------------------------------
-DB_PATH  = Path("data/market.db")
-SQL_DIR  = Path("queries")
+APP_DIR  = Path(__file__).parent
+DB_PATH  = APP_DIR / "data" / "market.db"
+SQL_DIR  = APP_DIR / "queries"
 
 # Colores del sistema de diseño (usados en todos los gráficos)
 C_VERDE  = "#26a69a"   # alcista, positivo, sobreventa
@@ -62,6 +63,59 @@ C_GRIS   = "#b0bec5"   # referencias, bandas neutras
 TEMPLATE = "plotly_white"
 
 EMOJI_SENT = {"positivo": "🟢", "negativo": "🔴", "neutral": "🟡"}
+
+# ---------------------------------------------------------------------------
+# Inicialización automática de BD (Streamlit Cloud no tiene market.db)
+# ---------------------------------------------------------------------------
+
+def _bd_necesita_inicializacion() -> bool:
+    """True si la BD no existe o la tabla precios está vacía."""
+    if not DB_PATH.exists():
+        return True
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        count = conn.execute("SELECT COUNT(*) FROM precios").fetchone()[0]
+        conn.close()
+        return count == 0
+    except Exception:
+        return True
+
+
+def _inicializar_bd() -> None:
+    """
+    Ejecuta etl.py y technical.py como subprocesos para crear y poblar la BD.
+    Se muestra solo en el primer arranque (BD ausente o vacía).
+    """
+    st.info(
+        "**Primera ejecución detectada.** "
+        "Descargando precios históricos e indicadores técnicos (~2 min)..."
+    )
+    barra = st.progress(0, text="Paso 1/2 — Descargando precios (etl.py)...")
+
+    res_etl = subprocess.run(
+        [sys.executable, "etl.py"],
+        capture_output=True, text=True, encoding="utf-8",
+        timeout=360, cwd=APP_DIR,
+    )
+    if res_etl.returncode != 0:
+        st.error(f"Error al descargar precios:\n```\n{res_etl.stderr[:800]}\n```")
+        st.stop()
+
+    barra.progress(60, text="Paso 2/2 — Calculando indicadores técnicos...")
+
+    res_tech = subprocess.run(
+        [sys.executable, "technical.py"],
+        capture_output=True, text=True, encoding="utf-8",
+        timeout=120, cwd=APP_DIR,
+    )
+    if res_tech.returncode != 0:
+        st.error(f"Error al calcular indicadores:\n```\n{res_tech.stderr[:800]}\n```")
+        st.stop()
+
+    barra.progress(100, text="¡Listo!")
+    st.success("Base de datos inicializada correctamente.")
+    st.rerun()
+
 
 # ---------------------------------------------------------------------------
 # Utilidades de base de datos
@@ -774,6 +828,10 @@ def render_panel_detalle(ticker: str) -> None:
 # ---------------------------------------------------------------------------
 # Main — inicialización de session state y routing entre paneles
 # ---------------------------------------------------------------------------
+
+# Verificar BD antes de cualquier query — arranca ETL si no existe
+if _bd_necesita_inicializacion():
+    _inicializar_bd()
 
 if "ticker_sel" not in st.session_state:
     st.session_state.ticker_sel = None
