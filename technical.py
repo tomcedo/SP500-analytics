@@ -2,7 +2,7 @@
 technical.py — Calcula indicadores técnicos sobre los precios históricos
 y los guarda en la tabla 'indicadores' de data/market.db.
 
-Indicadores calculados (con pandas-ta):
+Indicadores calculados (con pandas/numpy puro, sin pandas-ta):
     RSI(14), MACD(12,26,9), Bollinger Bands(20), EMA 20/50/200
 
 Uso:
@@ -22,7 +22,6 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
 
 # ---------------------------------------------------------------------------
 # Configuración
@@ -176,47 +175,40 @@ def leer_precios(conn: sqlite3.Connection, ticker: str | None = None) -> pd.Data
 
 def calcular_para_ticker(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Recibe el DataFrame de UN ticker (columnas en español) y calcula todos
-    los indicadores técnicos usando pandas-ta.
-
-    pandas-ta requiere columnas en inglés: open, high, low, close, volume.
-    Se renombran temporalmente, se calculan los indicadores y se restauran.
+    Calcula todos los indicadores técnicos usando pandas/numpy puro.
+    Sin dependencia de pandas-ta — compatible con Streamlit Cloud.
+    Los nombres de columna de salida son idénticos a los que generaba pandas-ta.
     """
-    # pandas-ta necesita nombres en inglés para el accessor .ta
-    df = df.rename(columns={
-        "apertura": "open",
-        "cierre":   "close",
-        "maximo":   "high",
-        "minimo":   "low",
-        "volumen":  "volume",
-    })
+    close = df["cierre"]
 
-    # RSI(14) — sobrecompra >70, sobreventa <30
-    df.ta.rsi(length=14, append=True)
+    # -- EMA 20/50/200 — tendencia de corto, mediano y largo plazo --
+    df["EMA_20"]  = close.ewm(span=20,  adjust=False).mean()
+    df["EMA_50"]  = close.ewm(span=50,  adjust=False).mean()
+    df["EMA_200"] = close.ewm(span=200, adjust=False).mean()
 
-    # MACD(12,26,9) — cruce de línea señal indica cambio de momentum
-    df.ta.macd(fast=12, slow=26, signal=9, append=True)
+    # -- RSI(14) — Wilder's smoothing (EWM con alpha=1/14) --
+    # sobrecompra >70, sobreventa <30
+    delta    = close.diff()
+    gain     = delta.clip(lower=0)
+    loss     = (-delta).clip(lower=0)
+    avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+    rs = avg_gain / avg_loss.replace(0, np.nan)
+    df["RSI_14"] = 100 - (100 / (1 + rs))
 
-    # Bollinger Bands(20, 2σ) — precio fuera de banda sugiere reversión o breakout
-    df.ta.bbands(length=20, std=2, append=True)
+    # -- MACD(12,26,9) — cruce de línea señal indica cambio de momentum --
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    df["MACD_12_26_9"]  = ema12 - ema26
+    df["MACDs_12_26_9"] = df["MACD_12_26_9"].ewm(span=9, adjust=False).mean()
+    df["MACDh_12_26_9"] = df["MACD_12_26_9"] - df["MACDs_12_26_9"]
 
-    # EMA 20 — tendencia de corto plazo; reacciona rápido a cambios recientes
-    df.ta.ema(length=20, append=True)
-
-    # EMA 50 — tendencia de mediano plazo; soporte/resistencia dinámica
-    df.ta.ema(length=50, append=True)
-
-    # EMA 200 — tendencia de largo plazo; golden/death cross con EMA 50
-    df.ta.ema(length=200, append=True)
-
-    # Restaurar nombres en español
-    df = df.rename(columns={
-        "open":   "apertura",
-        "close":  "cierre",
-        "high":   "maximo",
-        "low":    "minimo",
-        "volume": "volumen",
-    })
+    # -- Bollinger Bands(20, 2σ) — precio fuera de banda sugiere reversión o breakout --
+    bb_media = close.rolling(window=20).mean()
+    bb_std   = close.rolling(window=20).std(ddof=1)
+    df["BBM_20_2.0"] = bb_media
+    df["BBU_20_2.0"] = bb_media + 2 * bb_std
+    df["BBL_20_2.0"] = bb_media - 2 * bb_std
 
     return df
 
