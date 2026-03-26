@@ -1,0 +1,14 @@
+[theme]
+base            = "dark"
+primaryColor    = "#26a69a"      # verde alcista — acento principal
+backgroundColor = "#0e1117"      # fondo oscuro
+secondaryBackgroundColor = "#1a1f2e"   # paneles y sidebars
+textColor       = "#e0e0e0"      # texto principal
+
+[server]
+headless        = true           # requerido para Streamlit Cloud
+enableCORS      = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

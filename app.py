@@ -9,6 +9,7 @@ Navegación: session_state.ticker_sel == None → Panel General
             session_state.ticker_sel == "AAPL" → Panel Detalle
 """
 
+import os
 import sqlite3
 import subprocess
 import sys
@@ -17,7 +18,23 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from dotenv import load_dotenv
 from plotly.subplots import make_subplots
+
+# ---------------------------------------------------------------------------
+# Credenciales — .env en local, st.secrets en Streamlit Cloud
+# ---------------------------------------------------------------------------
+load_dotenv()  # no-op si no existe .env
+
+# Propagar st.secrets al entorno para que los subprocesos hereden las claves
+# (Streamlit Cloud inyecta secrets como env vars, pero load_dotenv los sobreescribe
+#  solo si .env existe; este bloque garantiza paridad en ambos entornos)
+for _k in ("XAI_API_KEY", "NEWS_API_KEY"):
+    if _k not in os.environ:
+        try:
+            os.environ[_k] = st.secrets[_k]
+        except (KeyError, FileNotFoundError):
+            pass  # clave no configurada — los scripts que la necesiten lo reportarán
 
 # ---------------------------------------------------------------------------
 # Configuración de página — debe ser la primera llamada a Streamlit
