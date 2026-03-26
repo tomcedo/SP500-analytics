@@ -540,16 +540,54 @@ def render_panel_general() -> None:
     st.divider()
 
     # ── Activos en movimiento en X ───────────────────────────────────────────
-    st.subheader("🔥 Activos en movimiento en X")
+    col_tit, col_btn = st.columns([5, 1])
+    with col_tit:
+        st.subheader("🔥 Activos en movimiento en X")
 
     df_mov = cargar_activos_movimiento()
 
     if df_mov.empty:
-        st.info(
-            "Sin datos de sentiment disponibles. "
-            "Ejecutá `python sentiment.py` para analizar la actividad en X."
-        )
+        # Sin datos: ofrecer botón de carga inicial
+        with col_btn:
+            analizar = st.button("🔄 Analizar", key="btn_sent_general",
+                                 help="Consulta xAI/Grok para los 20 tickers (~20 seg)")
+        st.caption("Consume la xAI API (~20 seg por ejecución)")
+
+        if analizar:
+            with st.spinner("Analizando actividad en X para 20 tickers..."):
+                res = subprocess.run(
+                    [sys.executable, "sentiment.py"],
+                    capture_output=True, text=True, encoding="utf-8",
+                    timeout=600, cwd=APP_DIR,
+                )
+            if res.returncode == 0:
+                st.success("Sentiment actualizado correctamente.")
+                cargar_activos_movimiento.clear()
+                cargar_panel_general.clear()
+                st.rerun()
+            else:
+                st.error(f"Error al analizar sentiment:\n```\n{res.stderr[:600]}\n```")
         return
+
+    # Con datos: mostrar panel + botón de refresco
+    with col_btn:
+        refrescar = st.button("↻ Actualizar", key="btn_sent_refresh",
+                              help="Volver a consultar xAI/Grok para los 20 tickers")
+
+    if refrescar:
+        with st.spinner("Actualizando sentiment en X para 20 tickers..."):
+            res = subprocess.run(
+                [sys.executable, "sentiment.py"],
+                capture_output=True, text=True, encoding="utf-8",
+                timeout=600, cwd=APP_DIR,
+            )
+        if res.returncode == 0:
+            st.success("Sentiment actualizado correctamente.")
+            cargar_activos_movimiento.clear()
+            cargar_panel_general.clear()
+            st.rerun()
+        else:
+            st.error(f"Error al actualizar sentiment:\n```\n{res.stderr[:600]}\n```")
 
     cols = st.columns(len(df_mov))
     for col_w, (_, fila) in zip(cols, df_mov.iterrows()):
