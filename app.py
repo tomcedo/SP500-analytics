@@ -106,7 +106,8 @@ def _inicializar_bd() -> None:
         timeout=360, cwd=APP_DIR,
     )
     if res_etl.returncode != 0:
-        st.error(f"Error al descargar precios:\n```\n{res_etl.stderr[:800]}\n```")
+        _err = (res_etl.stderr or "").strip() or "Sin salida de error — revisá la consola."
+        st.error(f"Error al descargar precios:\n```\n{_err[:800]}\n```")
         st.stop()
 
     barra.progress(60, text="Paso 2/2 — Calculando indicadores técnicos...")
@@ -117,7 +118,8 @@ def _inicializar_bd() -> None:
         timeout=120, cwd=APP_DIR,
     )
     if res_tech.returncode != 0:
-        st.error(f"Error al calcular indicadores:\n```\n{res_tech.stderr[:800]}\n```")
+        _err = (res_tech.stderr or "").strip() or "Sin salida de error — revisá la consola."
+        st.error(f"Error al calcular indicadores:\n```\n{_err[:800]}\n```")
         st.stop()
 
     # Crear tabla sentiment vacía si no existe — sentiment.py requiere XAI_API_KEY
@@ -663,7 +665,8 @@ def render_panel_general() -> None:
                 cargar_panel_general.clear()
                 st.rerun()
             else:
-                st.error(f"Error al analizar sentiment:\n```\n{res.stderr[:600]}\n```")
+                _err = (res.stderr or "").strip() or "Sin salida de error — verificá que XAI_API_KEY esté definida en esta sesión de PowerShell."
+                st.error(f"Error al analizar sentiment:\n```\n{_err[:600]}\n```")
         return
 
     # Con datos: mostrar panel + botón de refresco
@@ -684,7 +687,8 @@ def render_panel_general() -> None:
             cargar_panel_general.clear()
             st.rerun()
         else:
-            st.error(f"Error al actualizar sentiment:\n```\n{res.stderr[:600]}\n```")
+            _err = (res.stderr or "").strip() or "Sin salida de error — verificá que XAI_API_KEY esté definida en esta sesión de PowerShell."
+            st.error(f"Error al actualizar sentiment:\n```\n{_err[:600]}\n```")
 
     cols = st.columns(len(df_mov))
     for col_w, (_, fila) in zip(cols, df_mov.iterrows()):
@@ -816,7 +820,8 @@ def _seccion_sentiment(ticker: str) -> None:
             cargar_detalle_sentiment.clear()  # invalida solo esta función
             st.rerun()
         else:
-            st.error(f"Error al actualizar:\n{res.stderr[:400]}")
+            _err = (res.stderr or "").strip() or "Sin salida de error — verificá que XAI_API_KEY esté definida en esta sesión de PowerShell."
+            st.error(f"Error al actualizar:\n```\n{_err[:400]}\n```")
         return
 
     with col_info:
@@ -938,7 +943,8 @@ def render_panel_detalle(ticker: str) -> None:
             cargar_precios_15m.clear()
             st.rerun()
         else:
-            st.error(f"Error al actualizar:\n```\n{res.stderr[:400]}\n```")
+            _err = (res.stderr or "").strip() or "Sin salida de error — revisá la consola."
+            st.error(f"Error al actualizar:\n```\n{_err[:400]}\n```")
 
     # -- Cargar datos según intervalo --
     if intervalo == "1d":
