@@ -102,7 +102,7 @@ def _inicializar_bd() -> None:
 
     res_etl = subprocess.run(
         [sys.executable, "etl.py"],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
         timeout=360, cwd=APP_DIR,
     )
     if res_etl.returncode != 0:
@@ -113,7 +113,7 @@ def _inicializar_bd() -> None:
 
     res_tech = subprocess.run(
         [sys.executable, "technical.py"],
-        capture_output=True, text=True, encoding="utf-8",
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
         timeout=120, cwd=APP_DIR,
     )
     if res_tech.returncode != 0:
@@ -654,7 +654,7 @@ def render_panel_general() -> None:
             with st.spinner("Analizando actividad en X para 20 tickers..."):
                 res = subprocess.run(
                     [sys.executable, "sentiment.py"],
-                    capture_output=True, text=True, encoding="utf-8",
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                     timeout=600, cwd=APP_DIR,
                 )
             if res.returncode == 0:
@@ -675,7 +675,7 @@ def render_panel_general() -> None:
         with st.spinner("Actualizando sentiment en X para 20 tickers..."):
             res = subprocess.run(
                 [sys.executable, "sentiment.py"],
-                capture_output=True, text=True, encoding="utf-8",
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
                 timeout=600, cwd=APP_DIR,
             )
         if res.returncode == 0:
@@ -805,8 +805,8 @@ def _seccion_sentiment(ticker: str) -> None:
                 res = subprocess.run(
                     [sys.executable, "sentiment.py", "--ticker", ticker],
                     capture_output=True, text=True,
-                    encoding="utf-8", timeout=120,
-                    cwd=Path(__file__).parent,
+                    encoding="utf-8", errors="replace", timeout=120,
+                    cwd=APP_DIR,
                 )
             except subprocess.TimeoutExpired:
                 st.error("La llamada a xAI superó el límite de 2 minutos.")
@@ -928,7 +928,7 @@ def render_panel_detalle(ticker: str) -> None:
         with st.spinner(f"Descargando {cfg['label'].lower()} para {ticker}..."):
             res = subprocess.run(
                 [sys.executable, "etl.py", "--interval", intervalo, "--ticker", ticker],
-                capture_output=True, text=True, encoding="utf-8",
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
                 timeout=180, cwd=APP_DIR,
             )
         if res.returncode == 0:
