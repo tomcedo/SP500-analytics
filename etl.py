@@ -39,10 +39,10 @@ FECHA_INICIO = FECHA_FIN - timedelta(days=365 * 2)
 # Configuración de intervalos disponibles
 # period=None → usa FECHA_INICIO/FECHA_FIN; period="60d" → últimos 60 días (límite yfinance)
 INTERVALOS = {
-    "1d":  {"tabla": "precios",     "period": None,  "periodo_desc": "2 años"},
-    "1wk": {"tabla": "precios_1wk", "period": None,  "periodo_desc": "2 años"},
-    "1h":  {"tabla": "precios_1h",  "period": "60d", "periodo_desc": "60 días"},
-    "15m": {"tabla": "precios_15m", "period": "60d", "periodo_desc": "60 días"},
+    "1d":  {"tabla": "precios",     "period": None,  "periodo_desc": "2 anos"},
+    "1wk": {"tabla": "precios_1wk", "period": None,  "periodo_desc": "2 anos"},
+    "1h":  {"tabla": "precios_1h",  "period": "60d", "periodo_desc": "60 dias"},
+    "15m": {"tabla": "precios_15m", "period": "60d", "periodo_desc": "60 dias"},
 }
 
 # ---------------------------------------------------------------------------
@@ -319,7 +319,7 @@ def procesar_ticker(conn: sqlite3.Connection, ticker: str, intervalo: str = "1d"
 
     tabla = cfg["tabla"]
     insertadas = cargar_precios(conn, df, tabla)
-    print(f"  [{ticker}] {len(df)} filas → {insertadas} nuevas en '{tabla}' — {nombre}")
+    print(f"  [{ticker}] {len(df)} filas -> {insertadas} nuevas en '{tabla}' - {nombre}")
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +341,7 @@ def mostrar_resumen(conn: sqlite3.Connection, intervalos_procesados: list[str]) 
             f_min, f_max = conn.execute(
                 f"SELECT MIN(fecha), MAX(fecha) FROM {tabla}"
             ).fetchone()
-            print(f"  {tabla:<15}: {total:>8,} filas  ({f_min} → {f_max})")
+            print(f"  {tabla:<15}: {total:>8,} filas  ({f_min} -> {f_max})")
         except Exception:
             print(f"  {tabla:<15}: (sin datos)")
     print(f"  Base de datos     : {DB_PATH.resolve()}")

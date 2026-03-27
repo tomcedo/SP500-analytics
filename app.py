@@ -100,10 +100,11 @@ def _inicializar_bd() -> None:
     )
     barra = st.progress(0, text="Paso 1/2 — Descargando precios (etl.py)...")
 
+    _env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     res_etl = subprocess.run(
         [sys.executable, "etl.py"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
-        timeout=360, cwd=APP_DIR,
+        timeout=360, cwd=APP_DIR, env=_env,
     )
     if res_etl.returncode != 0:
         _err = (res_etl.stderr or "").strip() or "Sin salida de error — revisá la consola."
@@ -930,11 +931,12 @@ def render_panel_detalle(ticker: str) -> None:
         )
 
     if force_refresh:
+        _env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
         with st.spinner(f"Descargando {cfg['label'].lower()} para {ticker}..."):
             res = subprocess.run(
                 [sys.executable, "etl.py", "--interval", intervalo, "--ticker", ticker],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=180, cwd=APP_DIR,
+                timeout=180, cwd=APP_DIR, env=_env,
             )
         if res.returncode == 0:
             cargar_detalle_precios.clear()
