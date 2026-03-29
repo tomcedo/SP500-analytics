@@ -1,7 +1,7 @@
 -- alerta_volumen.sql
 -- Detecta actividad de volumen inusual comparando el último día
 -- con el promedio de los 20 días anteriores por ticker.
--- Categorías: compra_institucional, venta_institucional, volumen_elevado, ''
+-- Categorías: alto (>1.5x), bajo (<0.5x), normal (entre 0.5x y 1.5x)
 
 WITH vol_historico AS (
     -- Enumerar filas por ticker de más reciente a más antigua
@@ -19,8 +19,8 @@ vol_prom AS (
     GROUP BY ticker
 ),
 vol_hoy AS (
-    -- Volumen y dirección del precio del último día disponible
-    SELECT ticker, volumen AS vol_hoy, cierre, apertura
+    -- Volumen del último día disponible
+    SELECT ticker, volumen AS vol_hoy
     FROM precios
     WHERE (ticker, fecha) IN (
         SELECT ticker, MAX(fecha) FROM precios GROUP BY ticker
@@ -30,13 +30,10 @@ SELECT
     vh.ticker,
     ROUND(vh.vol_hoy * 1.0 / NULLIF(vp.vol_avg_20, 0), 2) AS ratio_vol,
     CASE
-        WHEN vh.vol_hoy > 2.0 * vp.vol_avg_20 AND vh.cierre >= vh.apertura
-            THEN 'compra_institucional'
-        WHEN vh.vol_hoy > 2.0 * vp.vol_avg_20 AND vh.cierre < vh.apertura
-            THEN 'venta_institucional'
-        WHEN vh.vol_hoy > 1.5 * vp.vol_avg_20
-            THEN 'volumen_elevado'
-        ELSE ''
+        WHEN vp.vol_avg_20 IS NULL          THEN 'normal'
+        WHEN vh.vol_hoy > 1.5 * vp.vol_avg_20 THEN 'alto'
+        WHEN vh.vol_hoy < 0.5 * vp.vol_avg_20 THEN 'bajo'
+        ELSE 'normal'
     END AS alerta_vol
 FROM vol_hoy vh
 LEFT JOIN vol_prom vp ON vp.ticker = vh.ticker

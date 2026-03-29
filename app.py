@@ -547,13 +547,11 @@ def _formatear_tabla(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _formatear_alerta_vol(alerta) -> str:
-    """Formatea la alerta de volumen inusual con emoji."""
-    if alerta == "compra_institucional":
-        return "🟢 Compra institucional"
-    if alerta == "venta_institucional":
-        return "🔴 Venta institucional"
-    if alerta == "volumen_elevado":
-        return "🟡 Volumen elevado"
+    """Formatea la alerta de volumen vs promedio 20 días."""
+    if alerta == "alto":
+        return "⚠️ Volumen alto"
+    if alerta == "bajo":
+        return "🔵 Volumen bajo"
     return "⚪ Volumen normal"
 
 
@@ -654,11 +652,19 @@ def render_panel_general() -> None:
         st.caption("Consume la xAI API (~20 seg por ejecución)")
 
         if analizar:
+            load_dotenv()
+            try:
+                xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
+            except Exception:
+                xai_key = os.environ.get("XAI_API_KEY", "")
+            _env = os.environ.copy()
+            _env["XAI_API_KEY"] = xai_key
+            _env["PYTHONIOENCODING"] = "utf-8"
             with st.spinner("Analizando actividad en X para 20 tickers..."):
                 res = subprocess.run(
                     [sys.executable, "sentiment.py"],
                     capture_output=True, text=True, encoding="utf-8", errors="replace",
-                    timeout=600, cwd=APP_DIR,
+                    timeout=600, cwd=APP_DIR, env=_env,
                 )
             if res.returncode == 0:
                 st.success("Sentiment actualizado correctamente.")
@@ -676,11 +682,19 @@ def render_panel_general() -> None:
                               help="Volver a consultar xAI/Grok para los 20 tickers")
 
     if refrescar:
+        load_dotenv()
+        try:
+            xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
+        except Exception:
+            xai_key = os.environ.get("XAI_API_KEY", "")
+        _env = os.environ.copy()
+        _env["XAI_API_KEY"] = xai_key
+        _env["PYTHONIOENCODING"] = "utf-8"
         with st.spinner("Actualizando sentiment en X para 20 tickers..."):
             res = subprocess.run(
                 [sys.executable, "sentiment.py"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=600, cwd=APP_DIR,
+                timeout=600, cwd=APP_DIR, env=_env,
             )
         if res.returncode == 0:
             st.success("Sentiment actualizado correctamente.")
@@ -805,13 +819,21 @@ def _seccion_sentiment(ticker: str) -> None:
         )
 
     if actualizar:
+        load_dotenv()
+        try:
+            xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
+        except Exception:
+            xai_key = os.environ.get("XAI_API_KEY", "")
+        _env = os.environ.copy()
+        _env["XAI_API_KEY"] = xai_key
+        _env["PYTHONIOENCODING"] = "utf-8"
         with st.spinner(f"Consultando xAI para ${ticker}..."):
             try:
                 res = subprocess.run(
                     [sys.executable, "sentiment.py", "--ticker", ticker],
                     capture_output=True, text=True,
                     encoding="utf-8", errors="replace", timeout=120,
-                    cwd=APP_DIR,
+                    cwd=APP_DIR, env=_env,
                 )
             except subprocess.TimeoutExpired:
                 st.error("La llamada a xAI superó el límite de 2 minutos.")
@@ -857,17 +879,53 @@ def _seccion_sentiment(ticker: str) -> None:
 
 
 def _seccion_noticias(ticker: str) -> None:
-    """
-    Muestra las 4 noticias más recientes del ticker desde la BD,
-    ordenadas de más nueva a más antigua.
-    """
+    """Muestra las 4 noticias más recientes + botón para actualizar vía news.py."""
     df_n = cargar_noticias(ticker)
 
-    if df_n.empty:
-        st.info(
-            f"Sin noticias para {ticker}. "
-            f"Ejecutá `python news.py --ticker {ticker}` para descargarlas."
+    col_info, col_btn = st.columns([6, 1])
+
+    with col_btn:
+        actualizar = st.button(
+            "🔄 Actualizar noticias",
+            key="btn_upd_news",
+            help=f"Descargar noticias recientes para ${ticker} vía NewsAPI",
         )
+
+    if actualizar:
+        load_dotenv()
+        try:
+            news_key = st.secrets.get("NEWS_API_KEY", "") or os.environ.get("NEWS_API_KEY", "")
+        except Exception:
+            news_key = os.environ.get("NEWS_API_KEY", "")
+        _env = os.environ.copy()
+        _env["NEWS_API_KEY"] = news_key
+        _env["PYTHONIOENCODING"] = "utf-8"
+        with st.spinner(f"Descargando noticias para ${ticker}..."):
+            try:
+                res = subprocess.run(
+                    [sys.executable, "news.py", "--ticker", ticker],
+                    capture_output=True, text=True,
+                    encoding="utf-8", errors="replace", timeout=120,
+                    cwd=APP_DIR, env=_env,
+                )
+            except subprocess.TimeoutExpired:
+                st.error("La descarga de noticias superó el límite de 2 minutos.")
+                return
+        if res.returncode == 0:
+            st.success("Noticias actualizadas correctamente.")
+            cargar_noticias.clear()
+            st.rerun()
+        else:
+            _err = (res.stderr or "").strip() or "Sin salida de error — verificá que NEWS_API_KEY esté definida."
+            st.error(f"Error al actualizar noticias:\n```\n{_err[:400]}\n```")
+        return
+
+    if df_n.empty:
+        with col_info:
+            st.info(
+                f"Sin noticias para {ticker}. "
+                "Presioná **Actualizar noticias** para descargarlas."
+            )
         return
 
     for _, row in df_n.iterrows():
