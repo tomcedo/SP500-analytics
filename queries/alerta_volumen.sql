@@ -1,7 +1,7 @@
 -- alerta_volumen.sql
 -- Detecta actividad de volumen inusual comparando el último día
 -- con el promedio de los 20 días anteriores por ticker.
--- Categorías: alto (>1.5x), bajo (<0.5x), normal (entre 0.5x y 1.5x)
+-- Categorías: alto (>1.3x), bajo (<0.7x), normal (entre 0.7x y 1.3x)
 
 WITH vol_historico AS (
     -- Enumerar filas por ticker de más reciente a más antigua
@@ -31,8 +31,8 @@ SELECT
     ROUND(vh.vol_hoy * 1.0 / NULLIF(vp.vol_avg_20, 0), 2) AS ratio_vol,
     CASE
         WHEN vp.vol_avg_20 IS NULL          THEN 'normal'
-        WHEN vh.vol_hoy > 1.5 * vp.vol_avg_20 THEN 'alto'
-        WHEN vh.vol_hoy < 0.5 * vp.vol_avg_20 THEN 'bajo'
+        WHEN vh.vol_hoy > 1.3 * vp.vol_avg_20 THEN 'alto'
+        WHEN vh.vol_hoy < 0.7 * vp.vol_avg_20 THEN 'bajo'
         ELSE 'normal'
     END AS alerta_vol
 FROM vol_hoy vh
