@@ -188,19 +188,12 @@ def guardar_sentiment(conn: sqlite3.Connection, datos: dict) -> None:
 # Llamada a la API de xAI
 # ---------------------------------------------------------------------------
 
-def obtener_api_key() -> str:
-    """
-    Lee XAI_API_KEY desde el entorno.
-    Lanza EnvironmentError si no está definida.
-    """
+def obtener_api_key():
     from dotenv import load_dotenv
     load_dotenv(override=True)
     key = os.environ.get("XAI_API_KEY", "").strip()
     if not key:
-        raise EnvironmentError(
-            "Variable de entorno XAI_API_KEY no definida. "
-            "Configurala en .env o en el entorno del sistema."
-        )
+        raise EnvironmentError("Variable de entorno XAI_API_KEY no definida.")
     return key
 
 

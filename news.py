@@ -129,19 +129,12 @@ def obtener_empresas(conn: sqlite3.Connection, tickers: list[str]) -> dict[str, 
 # API de NewsAPI
 # ---------------------------------------------------------------------------
 
-def obtener_api_key() -> str:
-    """
-    Lee NEWS_API_KEY desde el entorno.
-    Lanza EnvironmentError si no está definida.
-    """
+def obtener_api_key():
     from dotenv import load_dotenv
     load_dotenv(override=True)
     key = os.environ.get("NEWS_API_KEY", "").strip()
     if not key:
-        raise EnvironmentError(
-            "Variable de entorno NEWS_API_KEY no definida. "
-            "Configurala en .env o en el entorno del sistema."
-        )
+        raise EnvironmentError("Variable de entorno NEWS_API_KEY no definida.")
     return key
 
 
