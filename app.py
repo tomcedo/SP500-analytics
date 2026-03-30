@@ -654,11 +654,14 @@ def render_panel_general() -> None:
         if analizar:
             load_dotenv()
             try:
-                xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
-            except Exception:
-                xai_key = os.environ.get("XAI_API_KEY", "")
+                xai_key  = st.secrets.get("XAI_API_KEY",  "") or os.environ.get("XAI_API_KEY",  "")
+                news_key = st.secrets.get("NEWS_API_KEY", "") or os.environ.get("NEWS_API_KEY", "")
+            except:
+                xai_key  = os.environ.get("XAI_API_KEY",  "")
+                news_key = os.environ.get("NEWS_API_KEY", "")
             _env = os.environ.copy()
-            _env["XAI_API_KEY"] = xai_key
+            _env["XAI_API_KEY"]  = xai_key
+            _env["NEWS_API_KEY"] = news_key
             _env["PYTHONIOENCODING"] = "utf-8"
             with st.spinner("Analizando actividad en X para 20 tickers..."):
                 res = subprocess.run(
@@ -684,11 +687,14 @@ def render_panel_general() -> None:
     if refrescar:
         load_dotenv()
         try:
-            xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
-        except Exception:
-            xai_key = os.environ.get("XAI_API_KEY", "")
+            xai_key  = st.secrets.get("XAI_API_KEY",  "") or os.environ.get("XAI_API_KEY",  "")
+            news_key = st.secrets.get("NEWS_API_KEY", "") or os.environ.get("NEWS_API_KEY", "")
+        except:
+            xai_key  = os.environ.get("XAI_API_KEY",  "")
+            news_key = os.environ.get("NEWS_API_KEY", "")
         _env = os.environ.copy()
-        _env["XAI_API_KEY"] = xai_key
+        _env["XAI_API_KEY"]  = xai_key
+        _env["NEWS_API_KEY"] = news_key
         _env["PYTHONIOENCODING"] = "utf-8"
         with st.spinner("Actualizando sentiment en X para 20 tickers..."):
             res = subprocess.run(
@@ -821,11 +827,14 @@ def _seccion_sentiment(ticker: str) -> None:
     if actualizar:
         load_dotenv()
         try:
-            xai_key = st.secrets.get("XAI_API_KEY", "") or os.environ.get("XAI_API_KEY", "")
-        except Exception:
-            xai_key = os.environ.get("XAI_API_KEY", "")
+            xai_key  = st.secrets.get("XAI_API_KEY",  "") or os.environ.get("XAI_API_KEY",  "")
+            news_key = st.secrets.get("NEWS_API_KEY", "") or os.environ.get("NEWS_API_KEY", "")
+        except:
+            xai_key  = os.environ.get("XAI_API_KEY",  "")
+            news_key = os.environ.get("NEWS_API_KEY", "")
         _env = os.environ.copy()
-        _env["XAI_API_KEY"] = xai_key
+        _env["XAI_API_KEY"]  = xai_key
+        _env["NEWS_API_KEY"] = news_key
         _env["PYTHONIOENCODING"] = "utf-8"
         with st.spinner(f"Consultando xAI para ${ticker}..."):
             try:
@@ -894,10 +903,13 @@ def _seccion_noticias(ticker: str) -> None:
     if actualizar:
         load_dotenv()
         try:
+            xai_key  = st.secrets.get("XAI_API_KEY",  "") or os.environ.get("XAI_API_KEY",  "")
             news_key = st.secrets.get("NEWS_API_KEY", "") or os.environ.get("NEWS_API_KEY", "")
-        except Exception:
+        except:
+            xai_key  = os.environ.get("XAI_API_KEY",  "")
             news_key = os.environ.get("NEWS_API_KEY", "")
         _env = os.environ.copy()
+        _env["XAI_API_KEY"]  = xai_key
         _env["NEWS_API_KEY"] = news_key
         _env["PYTHONIOENCODING"] = "utf-8"
         with st.spinner(f"Descargando noticias para ${ticker}..."):
