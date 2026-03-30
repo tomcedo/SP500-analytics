@@ -134,6 +134,8 @@ def obtener_api_key() -> str:
     Lee NEWS_API_KEY desde el entorno.
     Lanza EnvironmentError si no está definida.
     """
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     key = os.environ.get("NEWS_API_KEY", "").strip()
     if not key:
         raise EnvironmentError(
